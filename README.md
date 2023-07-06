@@ -19,8 +19,8 @@ Part I: Calibration and Simulation using GAMS
 * Policy simulation: https://github.com/econweng/AJAEcobenefit/blob/main/Code/GAMS/mendota_cobenefit_policysimuation.gms
 
 Part II: Visualisation using R
-*Related data can be found here: https://github.com/econweng/AJAEcobenefit/tree/main/Data/Simulated%20Results
-*Related code: https://github.com/econweng/AJAEcobenefit/blob/main/Code/R/Co-benefits.Rmd
+* Related data can be found here: https://github.com/econweng/AJAEcobenefit/tree/main/Data/Simulated%20Results
+* Related code: https://github.com/econweng/AJAEcobenefit/blob/main/Code/R/Co-benefits.Rmd
 
 ## License
 
