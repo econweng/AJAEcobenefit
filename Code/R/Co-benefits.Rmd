@@ -1,0 +1,324 @@
+---
+title: "Calculate Monetary Value of Co-benefits"
+author: "Weizhe Weng"
+date: "2/8/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## plot status quo results
+
+```{r}
+#nitrogen leaching
+library(dplyr)
+library(foreign)
+library(ggpubr)
+library(ggthemes)
+library(stringr)
+library(cowplot)
+library(openxlsx)
+library(tidyr)
+library(ggpubr)
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(reshape)
+library(reshape2)
+library(colorRamps)
+library(RColorBrewer)
+library(colorBlindness)
+
+path = "~/Dropbox/Research/Mendota co-benefits/AJAE submission/second R&R/Data & Results"
+
+setwd(path)
+
+# summarize leaching levels
+library(readxl)
+fileem = list.files(path,"leaching_command.xlsx")
+leaching<-read_excel(fileem, sheet = "Sheet1")
+
+SQleach<-filter(leaching,Scenario=="0")%>%
+  select(-ID,-Unique,-Scenario)%>%
+  pivot_longer(cols=!Rotation,names_to="year",values_to = "Leaching")%>%
+  mutate(Nleaching=1000*Leaching)%>%
+  mutate(Rotation=case_when(Rotation=="Corn-Corn"~"Continuous Corn", Rotation=="Corn-Alfafa"~"Corn-Alfalfa Rotation", Rotation=="Corn-Soybean"~"Corn-Soybean Rotation", Rotation=="Fallow"~"Fallow"))
+                              
+
+options(scipen = 999)
+
+fSQleach<-ggplot(data=SQleach,aes(x=year,y=Leaching,group=Rotation))+geom_line(aes(color=Rotation))+geom_point(aes(color=Rotation))+ scale_fill_manual(values=Blue2DarkRed12Steps)+labs(x="Year",y="N Leaching (1000 lbs)")+ylim(0,900)+theme(legend.position = "top")
+                
+#nitrogen emission
+fileem = list.files(path,"emission_command-1.xlsx")
+emission<-read_excel(fileem, sheet = "Sheet1")
+
+SQemit<-filter(emission,Scenario=="0")%>%
+  select(-ID,-Unique,-Scenario)%>%
+  pivot_longer(cols=!Rotation,names_to="year",values_to = "emission")%>%
+  mutate(Nemission=1000*emission)%>%
+  mutate(Rotation=case_when(Rotation=="Corn-Corn"~"Continuous Corn", Rotation=="Corn-Alfafa"~"Corn-Alfalfa Rotation", Rotation=="Corn-Soybean"~"Corn-Soybean Rotation", Rotation=="Fallow"~"Fallow"))
+
+fSQemit<-ggplot(data=SQemit,aes(x=year,y=emission,group=Rotation))+geom_line(aes(color=Rotation))+geom_point(aes(color=Rotation))+ theme(legend.position = "top")+labs(x="Year",y="N Emission (1000 lbs)")+ylim(0,900)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+f1<-ggarrange(fSQleach, fSQemit,common.legend = TRUE)
+
+ggsave(f1,file="statusquo.png",width = 10, height=6)
+```
+
+
+## Plot Land allocation and N allocation adjustments
+
+```{r cars}
+# N application
+fileN = list.files(path,"Napplication_command.xlsx")
+peracreN<-read_excel(fileN, sheet = "unitN")
+
+peracreN = peracreN[,-c(1:2)]
+peracreN<-as.data.frame(peracreN)
+peracreN1 = melt(peracreN,id=c("Scenario","Rotation"))
+
+colnames(peracreN1)[3] <-"year"
+colnames(peracreN1)[4] <-"PeracreN"
+
+peracreN1$PeracreN<-as.numeric(peracreN1$PeracreN)
+
+Napplication <- peracreN1 %>% select(-year)%>%
+  group_by(Scenario,Rotation) %>%
+  filter (!duplicated(PeracreN))
+  
+#plot 
+pN1<-ggscatter(filter(Napplication,Rotation=='Corn-Corn'),x="Scenario",y="PeracreN",alpha=0.8,title="Continuous Corn",xlab="% Leaching Reduction",ylab="Per Acre N Application (lb) ")+theme_bw()+geom_point(size=0.8)+ylim(0, 170)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+pN2<-ggscatter(filter(Napplication,Rotation=='Corn-Soybean'),x="Scenario",y="PeracreN",alpha=1,title="Corn-Soybean Rotation",xlab="% Leaching Reduction",ylab="Per Acre N Application (lb) ")+theme_bw()+geom_point(size=0.8)+ylim(0, 170)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+pN3<-ggscatter(filter(Napplication,Rotation=='Corn-Alfafa'),x="Scenario",y="PeracreN",alpha=1,title="Corn-Alfalfa Rotation",xlab="% Leaching Reduction",ylab="Per Acre N Application (lb) ")+theme_bw()+geom_point(size=0.8)+ylim(0, 170)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+f2<-ggarrange(pN1,pN2,pN3)
+
+ggsave(f2,file="Nchange.png",width = 10, height=8)
+
+## plot land change
+land<-read_excel(fileN, sheet = "land")
+
+land = land[,-c(1:2)]
+land<-as.data.frame(land)
+land1 = melt(land,id=c("Scenario","Rotation"))
+
+colnames(land1)[3] <-"year"
+colnames(land1)[4] <-"landacr"
+
+#land1$landacr=1000*land1$landacr
+
+pL1<-ggscatter(filter(land1,Rotation=='Corn-Corn'),x="Scenario",y="landacr",alpha=1,title="Corn-Corn",xlab="% Leaching Reduction",ylab="Land Acreage (1000 acres)")+theme_bw()+ylim(0, 70)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+pL2<-ggscatter(filter(land1,Rotation=='Corn-Soybean'),x="Scenario",y="landacr",alpha=1,title="Corn-Soybean",xlab="% Leaching Reduction",ylab="Land Acreage (1000 acres)")+theme_bw()+ylim(0, 70)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+pL3<-ggscatter(filter(land1,Rotation=='Corn-Alfafa'),x="Scenario",y="landacr",alpha=1,title="Corn-Alfalfa",xlab="% Leaching Reduction",ylab="Land Acreage (1000 acres)")+theme_bw()+ylim(0, 70)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+pL4<-ggscatter(filter(land1,Rotation=='Fallow'),x="Scenario",y="landacr",alpha=1,title="Fallow",xlab="% Leaching Reduction",ylab="Land Acreage (1000 acres)")+theme_bw()+ylim(0, 70)+ scale_fill_manual(values=Blue2DarkRed12Steps)
+
+
+f3<-ggarrange(pL1,pL2,pL3,pL4)
+
+ggsave(f3,file="landchange.png",width = 10, height=8)
+```
+
+## Plot Leaching and emission results
+
+```{r cars}
+#leaching
+fileem = list.files(path,"leaching_command.xlsx")
+leaching<-read_excel(fileem, sheet = "Sheet1")
+
+leaching<-leaching[,-c(1:2)]
+leaching<-as.data.frame(leaching)
+leaching1 = melt(leaching,id=c("Scenario","Rotation"))
+
+colnames(leaching1)[3] <-"year"
+colnames(leaching1)[4] <-"leaching"
+
+leaching2 <-leaching1 %>% 
+  group_by(Scenario,year) %>% 
+  mutate(sum_leaching = sum(leaching))%>% 
+  select(-c(Rotation,leaching))%>%distinct()
+
+ccleaching <-ggboxplot(filter(leaching1,Rotation=='Corn-Corn'),x="Scenario",y="leaching",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+ylab('Nitrogen Leaching (1000 lbs)')+font("xlab", face="bold") + ggtitle("Continuous Corn")+ylim(0,1300)+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+scale_fill_viridis_d()
+
+  
+csleaching <-ggboxplot(filter(leaching1,Rotation=='Corn-Soybean'),x="Scenario",y="leaching",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Nitrogen Leaching (1000 lbs)')+font("xlab", face="bold") + ggtitle("Corn-Soybean Rotation")+ylim(0,1300)+scale_fill_viridis_d()
+  
+caleaching <-ggboxplot(filter(leaching1,Rotation=='Corn-Alfafa'),x="Scenario",y="leaching",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Nitrogen Leaching (1000 lbs)')+font("xlab", face="bold") + ggtitle("Corn-Alfalfa Rotation")+ylim(0,1300)+scale_fill_viridis_d()
+
+totalleaching<-ggboxplot(leaching2,x="Scenario",y="sum_leaching",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+
+  ylab('Nitrogen Leaching (1000 lbs)')+
+  font("xlab", face="bold") + ggtitle("Total")+ylim(0,1300)+scale_fill_viridis_d()
+
+f4<-ggarrange(ccleaching,csleaching,caleaching,totalleaching)
+
+ggsave(f4,file="leaching.png",width = 10, height=8)
+
+# emission
+#plot emission change
+fileem = list.files(path,"emission_command-1.xlsx")
+emission<-read_excel(fileem, sheet = "Sheet1")
+
+emission = emission[,-c(1:2)]
+emission<-as.data.frame(emission)
+emission1 = melt(emission,id=c("Scenario","Rotation"))
+
+colnames(emission1)[3] <-"year"
+colnames(emission1)[4] <-"emission"
+
+emission2 <- emission1 %>% group_by(Scenario,year) %>% mutate(sum_emission = sum(emission)) %>% select(-c(Rotation,emission))%>%distinct()
+
+ccemission <-ggboxplot(filter(emission1,Rotation=='Corn-Corn'),x="Scenario",y="emission",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Nitrous Oxide Emission (1000 lbs)')+font("xlab", face="bold") + ggtitle("Continuous Corn")+ylim(0,160)+scale_fill_viridis_d()
+  
+csemission <-ggboxplot(filter(emission1,Rotation=='Corn-Soybean'),x="Scenario",y="emission",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Nitrous Oxide Emission (1000 lbs)')+font("xlab", face="bold") + ggtitle("Corn-Soybean Rotation")+ylim(0,160)+scale_fill_viridis_d()
+  
+caemission <-ggboxplot(filter(emission1,Rotation=='Corn-Alfafa'),x="Scenario",y="emission",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Nitrous Oxide Emission (1000 lbs)')+font("xlab", face="bold") + ggtitle("Corn-Alfalfa Rotation")+ylim(0,160)+scale_fill_viridis_d()
+
+totalemission<-ggboxplot(emission2,x="Scenario",y="sum_emission",fill="Scenario",alpha=0.6,xlab="% Leaching Reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+
+  ylab('Nitrous Oxide Emission (1000 lbs)')+
+  font("xlab", face="bold") + ggtitle("Total")+ylim(0,160)+scale_fill_viridis_d()
+
+f5<-ggarrange(ccemission,csemission,caemission,totalemission)
+
+ggsave(f5,file="emission.png",width = 10, height=8)
+
+```
+
+## Monetary Value of Benefits
+
+```{r cars}
+# summarize leaching levels
+
+diffleach= leaching2 %>% group_by(year) %>% mutate(leach_diff = - sum_leaching + sum_leaching[Scenario==0])
+
+diffleach$ID<-paste(diffleach$year,diffleach$Scenario)
+
+#summarizing emission levels
+diffemission= emission2 %>% group_by(year) %>% mutate(emission_diff = - sum_emission + sum_emission[Scenario==0])
+
+diffemission$ID<-paste(diffemission$year,diffemission$Scenario)
+
+env<-left_join(diffleach,diffemission,by="ID")
+
+#need change
+env$mN2O<-14.48*env$emission_diff*1000
+env$mNO3_mean<-0.26*env$leach_diff*1000
+env$mNO3_low<-0.19*env$leach_diff*1000
+env$mNO3_high<-0.33*env$leach_diff*1000
+
+env$m_mean<-env$mN2O+env$mNO3_mean
+env$m_low<-env$mN2O+env$mNO3_low
+env$m_high<-env$mN2O+env$mNO3_high
+
+## loss in profit
+fileprofit = list.files(path,"profit_command.xlsx")
+ProfitR<-read_excel(fileprofit, sheet = "Sheet1")
+
+ProfitR = ProfitR[,-c(1:2)]
+ProfitR<-as.data.frame(ProfitR)
+ProfitR1 = melt(ProfitR,id=c("Scenario","Rotation"))
+
+colnames(ProfitR1)[3] <-"year"
+colnames(ProfitR1)[4] <-"Profit"
+
+profit2 <-ProfitR1 %>% 
+  group_by(Scenario,year) %>% 
+  mutate(sum_profit = sum(Profit))%>% 
+  select(-c(Rotation,Profit))%>%distinct()
+
+diffprofit= profit2 %>% group_by(year) %>% mutate(profit_diff = - sum_profit + sum_profit[Scenario==0])
+
+diffprofit$ID<-paste(diffprofit$year,diffprofit$Scenario)
+
+diffprofit$sum_profit_diff<-diffprofit$profit_diff*1000
+
+env<-left_join(env,diffprofit,by="ID")
+
+env<-env%>%
+  filter(diffprofit>0)
+
+#average across years
+
+avgenv <- env %>% group_by(Scenario) %>% mutate(avg_NO3=mean(leach_diff)*1000,avg_N2O=mean(emission_diff)*1000,avg_m_mean=mean(m_mean),avg_mNO3_mean=mean(mNO3_mean),avg_m_low=mean(m_low),avg_mNO3_low=mean(mNO3_low),avg_m_high=mean(m_high),avg_mNO3_high=mean(mNO3_high),avg_mN2O=mean(mN2O),avg_profit=mean(sum_profit_diff))%>% distinct()
+
+avgenv$avg_mNO3_low_report=avgenv$avg_mNO3_low/1000
+avgenv$avg_mNO3_high_report=avgenv$avg_mNO3_high/1000
+
+
+avgenv<-avgenv%>%
+  filter(avg_mNO3_low_report>0)
+
+avgenv$bc1_mean<-avgenv$avg_mNO3_mean/avgenv$avg_profit
+avgenv$bc2_mean<-avgenv$avg_m_mean/avgenv$avg_profit
+
+avgenv$bc1_low<-avgenv$avg_mNO3_low/avgenv$avg_profit
+avgenv$bc2_low<-avgenv$avg_m_low/avgenv$avg_profit
+
+avgenv$bc1_high<-avgenv$avg_mNO3_high/avgenv$avg_profit
+avgenv$bc2_high<-avgenv$avg_m_high/avgenv$avg_profit
+
+avgenv$ratio_low<-avgenv$bc2_low/avgenv$bc1_low
+avgenv$ratio_high<-avgenv$bc2_high/avgenv$bc1_high
+
+summary(avgenv$ratio_low)
+summary(avgenv$ratio_high)
+
+avgenvunique<-avgenv %>% 
+  select(Scenario.x,year.x,avg_NO3,avg_N2O,avg_mNO3_mean,avg_mNO3_low,avg_mNO3_high,avg_mN2O,avg_profit,bc1_mean,bc2_mean,bc1_low,bc2_low,bc1_high,bc2_high)%>%
+  mutate(avg_NO3_report=avg_NO3/1000)%>%
+  mutate(avg_N2O_report=avg_N2O/1000)%>%
+  mutate(avg_mNO3_mean_report=avg_mNO3_mean/1000)%>%
+  mutate(avg_mNO3_low_report=avg_mNO3_low/1000)%>%
+  mutate(avg_mNO3_high_report=avg_mNO3_high/1000)%>%
+  mutate(avg_mN2O_report=avg_mN2O/1000)%>%
+  mutate(avg_profit_report=avg_profit/1000)
+
+
+## benefit-cost ratio 
+#ratio without co-benefits
+
+env$bc1<-env$mNO3_mean/env$sum_profit_diff
+
+#ratio with co-benefits
+env$bc2<-env$m_mean/env$sum_profit_diff
+
+env$reverse<-ifelse(env$bc2>1, 1, 0)
+
+env$ratio<-env$m_mean/env$mNO3_mean
+
+summary(env$ratio)
+
+summary(env$reverse)
+
+```
+## Visualization of Co-benefits
+
+```{r cars}
+## monetary value of nitrate leaching
+env$mN2O_1000=env$mN2O/1000
+env$mNO3_mean_1000=env$mNO3_mean/1000
+
+env<-env%>%
+  filter(mNO3_mean_1000>0)
+
+m0 = ggboxplot(filter(env),x="Scenario.x",y="mNO3_mean_1000",fill="Scenario.x",alpha=0.6,title="",xlab="% reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Benefits (1000$)')+font("xlab", face="bold") + ggtitle("Benefits of Leaching Reduction")+ylim(0,2200)+scale_fill_viridis_d()
+
+m1 =ggboxplot(filter(env),x="Scenario.x",y="mN2O_1000",fill="Scenario.x",alpha=0.6,title="",xlab="% reduction")+rremove("legend")+geom_jitter(pch=21, col='black', fill='gray50',alpha=0.2)+ylab('Benefits (1000$)')+font("xlab", face="bold") + ggtitle("Benefits of GHG Reduction")+ylim(0,2200)+scale_fill_viridis_d()
+
+f6 = plot_grid(m0,m1)
+
+ggsave(f6,file="monetary value.png",width = 10, height=6)
+
+
+
+
+
+
+
+```
