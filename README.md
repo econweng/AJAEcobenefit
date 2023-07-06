@@ -10,7 +10,17 @@ Before running the code, please ensure that you have the following software/libr
 * R studio
 
 ## Instructions for Data Preparation and Analysis
+We used GAMS to generate calibration and simulation results and used R to produce related graphs. 
 
+We processed land use data from Cropland Data Layer for the study site. Processed land use data can be found here: https://github.com/econweng/AJAEcobenefit/tree/main/Data/land%20use%20data
+
+Part I: Calibration and Simulation using GAMS
+* Calibration based on the observed baseline: https://github.com/econweng/AJAEcobenefit/blob/main/Code/GAMS/mendota_cobenefit_baseline.gms
+* Policy simulation: https://github.com/econweng/AJAEcobenefit/blob/main/Code/GAMS/mendota_cobenefit_policysimuation.gms
+
+Part II: Visualisation using R
+*Related data can be found here: https://github.com/econweng/AJAEcobenefit/tree/main/Data/Simulated%20Results
+*Related code: https://github.com/econweng/AJAEcobenefit/blob/main/Code/R/Co-benefits.Rmd
 
 ## License
 
